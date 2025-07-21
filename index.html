@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>QQ群添加入口</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="format-detection" content="telephone=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  
+  <style>
+    /* 原有的 CSS 代码保持不变 */
+    :root {
+      --primary-hue: 210; /* 信任蓝主色调 */
+      --secondary-hue: 180;
+      --accent-hue: 240;
+      
+      /* 优化渐变提升稳定性视觉感受 */
+      --gradient-1: linear-gradient(135deg, 
+        hsl(var(--primary-hue), 70%, 50%) 0%, 
+        hsl(var(--secondary-hue), 65%, 50%) 50%,
+        hsl(var(--accent-hue), 60%, 50%) 100%);
+      
+      --gradient-2: linear-gradient(45deg,
+        hsla(var(--primary-hue), 80%, 60%, 0.9) 0%,
+        hsla(var(--secondary-hue), 75%, 55%, 0.8) 50%,
+        hsla(var(--accent-hue), 70%, 50%, 0.7) 100%);
+        
+      --glass-bg: rgba(255, 255, 255, 0.12);
+      --glass-border: rgba(255, 255, 255, 0.18);
+      --glass-shadow: rgba(0, 0, 0, 0.25);
+      
+      --text-primary: rgba(255, 255, 255, 0.95);
+      --text-secondary: rgba(255, 255, 255, 0.8);
+      --text-accent: rgba(255, 255, 255, 0.9);
+    }
+    
+    /* 基础样式保持不变 */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 15px;
+      overflow: hidden;
+      position: relative;
+      background: #000;
+    }
+    
+    /* 背景层样式保持不变 */
+    .background-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: -10;
+      overflow: hidden;
+    }
+    
+    .bg-layer {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      background: var(--gradient-1);
+      animation: bgShift 20s ease-in-out infinite;
+      opacity: 0.8;
+    }
+    
+    .particle-container {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+    
+    .particle {
+      position: absolute;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 50%;
+      pointer-events: none;
+      animation: float 6s ease-in-out infinite;
+    }
+    
+    /* 卡片样式保持不变 */
+    .card {
+      backdrop-filter: blur(30px) saturate(180%);
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 28px;
+      padding: 45px 35px 35px;
+      max-width: 420px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 
+        0 30px 60px var(--glass-shadow),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3),
+        0 0 0 1px rgba(255, 255, 255, 0.05);
+      position: relative;
+      overflow: hidden;
+      animation: cardEntrance 1.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+      transform-origin: center;
+    }
+    
+    /* 新增：错误提示样式 */
+    .error-message {
+      display: none;
+      margin-top: 20px;
+      padding: 16px;
+      background: rgba(255, 80, 80, 0.15);
+      border: 1px solid rgba(255, 80, 80, 0.3);
+      border-radius: 12px;
+      color: #ff8a8a;
+      font-size: 15px;
+      line-height: 1.6;
+      animation: fadeInUp 0.5s ease forwards;
+    }
+    
+    .backup-methods {
+      margin-top: 25px;
+      padding: 20px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .group-qrcode {
+      margin: 15px auto 0;
+      width: 160px;
+      height: 160px;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 2px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    .group-qrcode img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    
+    .group-number {
+      margin-top: 15px;
+      padding: 12px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text-primary);
+      letter-spacing: 2px;
+    }
+    
+    /* 其他样式保持不变 */
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.8), transparent);
+      animation: shimmer 3s infinite;
+    }
+    
+    .card::after {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: conic-gradient(
+        from 0deg,
+        transparent 340deg,
+        rgba(255, 255, 255, 0.05) 360deg
+      );
+      animation: rotate 8s linear infinite;
+      pointer-events: none;
+    }
+    
+    .card-content {
+      position: relative;
+      z-index: 2;
+    }
+    
+    .theme-indicator {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      width: 45px;
+      height: 45px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      animation: themeFloat 4s ease-in-out infinite;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      z-index: 10;
+    }
+    
+    .theme-indicator:hover {
+      transform: scale(1.1);
+      background: rgba(255, 255, 255, 0.2);
+    }
+    
+    .group-icon {
+      width: 120px;
+      height: 120px;
+      margin: 0 auto 25px;
+      position: relative;
+      cursor: pointer;
+      animation: iconPulse 3s ease-in-out infinite;
+    }
+    
+    .icon-bg {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      background: var(--gradient-2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 50px;
+      color: white;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 
+        0 15px 35px rgba(0, 0, 0, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3);
+      transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+      border: 3px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    .title {
+      font-size: 32px;
+      font-weight: 800;
+      margin-bottom: 15px;
+      color: var(--text-primary);
+      line-height: 1.2;
+      background: linear-gradient(135deg, #ffffff, #f0f0f0, #ffffff);
+      background-size: 200% 200%;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: titleGlow 4s ease-in-out infinite;
+      text-shadow: 0 2px 10px rgba(255, 255, 255, 0.1);
+      letter-spacing: 1px;
+    }
+    
+    .subtitle {
+      font-size: 18px;
+      color: var(--text-secondary);
+      margin-bottom: 35px;
+      line-height: 1.6;
+      opacity: 0;
+      animation: fadeInUp 1s ease 0.3s forwards;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    }
+    
+    .group-info {
+      display: flex;
+      justify-content: space-around;
+      margin: 25px 0 35px;
+      opacity: 0;
+      animation: fadeInUp 1s ease 0.5s forwards;
+    }
+    
+    .info-item {
+      text-align: center;
+      flex: 1;
+    }
+    
+    .info-number {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--text-primary);
+      display: block;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    }
+    
+    .info-label {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-top: 4px;
+      opacity: 0.8;
+    }
+    
+    .join-btn {
+      display: block;
+      width: 100%;
+      padding: 22px 0;
+      background: var(--gradient-2);
+      color: white;
+      font-size: 20px;
+      font-weight: 700;
+      border: none;
+      border-radius: 30px;
+      text-decoration: none;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+      box-shadow: 
+        0 15px 35px rgba(0, 0, 0, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.4);
+      letter-spacing: 1px;
+      opacity: 0;
+      animation: fadeInUp 1s ease 0.7s forwards;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    }
+    
+    .join-btn::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+      transition: left 0.6s ease;
+    }
+    
+    .join-btn:hover {
+      transform: translateY(-5px) scale(1.03);
+      box-shadow: 
+        0 20px 45px rgba(0, 0, 0, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.5);
+    }
+    
+    .join-btn:hover::before {
+      left: 100%;
+    }
+    
+    .env-info {
+      margin-top: 25px;
+      padding: 18px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+      backdrop-filter: blur(10px);
+      opacity: 0;
+      animation: fadeInUp 1s ease 0.9s forwards;
+    }
+    
+    .time-info {
+      margin-top: 20px;
+      font-size: 15px;
+      color: var(--text-secondary);
+      opacity: 0;
+      animation: fadeInUp 1s ease 1.1s forwards;
+    }
+    
+    .loading {
+      display: none;
+      margin-top: 20px;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    
+    .loading-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.8);
+      animation: loadingPulse 1.4s ease-in-out infinite both;
+    }
+    
+    .loading-dot:nth-child(1) { animation-delay: -0.32s; }
+    .loading-dot:nth-child(2) { animation-delay: -0.16s; }
+    .loading-dot:nth-child(3) { animation-delay: 0s; }
+    
+    /* 动画定义保持不变 */
+    @keyframes bgShift {
+      0%, 100% { 
+        filter: hue-rotate(0deg) brightness(1);
+        transform: scale(1);
+      }
+      25% { 
+        filter: hue-rotate(90deg) brightness(1.1);
+        transform: scale(1.05);
+      }
+      50% { 
+        filter: hue-rotate(180deg) brightness(0.9);
+        transform: scale(1.02);
+      }
+      75% { 
+        filter: hue-rotate(270deg) brightness(1.1);
+        transform: scale(1.05);
+      }
+    }
+    
+    @keyframes float {
+      0%, 100% { transform: translateY(0px) rotate(0deg); }
+      33% { transform: translateY(-20px) rotate(120deg); }
+      66% { transform: translateY(10px) rotate(240deg); }
+    }
+    
+    @keyframes cardEntrance {
+      0% {
+        opacity: 0;
+        transform: scale(0.8) translateY(50px) rotateX(20deg);
+      }
+      100% {
+        opacity: 1;
+        transform: scale(1) translateY(0px) rotateX(0deg);
+      }
+    }
+    
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    @keyframes shimmer {
+      0% { opacity: 0; }
+      50% { opacity: 1; }
+      100% { opacity: 0; }
+    }
+    
+    @keyframes rotate {
+      100% { transform: rotate(360deg); }
+    }
+    
+    @keyframes themeFloat {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-8px); }
+    }
+    
+    @keyframes iconPulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+    
+    @keyframes iconShine {
+      0% { left: -100%; }
+      100% { left: 100%; }
+    }
+    
+    @keyframes titleGlow {
+      0%, 100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+    }
+    
+    @keyframes loadingPulse {
+      0%, 80%, 100% { 
+        transform: scale(0.8); 
+        opacity: 0.5; 
+      }
+      40% { 
+        transform: scale(1.2); 
+        opacity: 1; 
+      }
+    }
+    
+    /* 响应式设计保持不变 */
+    @media (max-width: 480px) {
+      .card {
+        padding: 35px 25px 25px;
+        margin: 10px;
+        border-radius: 24px;
+      }
+      
+      .group-icon {
+        width: 90px;
+        height: 90px;
+      }
+      
+      .icon-bg {
+        font-size: 40px;
+      }
+      
+      .title {
+        font-size: 26px;
+      }
+      
+      .subtitle {
+        font-size: 16px;
+      }
+      
+      .join-btn {
+        padding: 20px 0;
+        font-size: 18px;
+      }
+    }
+    
+    @media (max-width: 320px) {
+      .card {
+        padding: 30px 20px;
+      }
+      
+      .group-icon {
+        width: 80px;
+        height: 80px;
+      }
+      
+      .title {
+        font-size: 24px;
+      }
+      
+      .subtitle {
+        font-size: 14px;
+      }
+      
+      .join-btn {
+        padding: 18px 0;
+        font-size: 16px;
+      }
+    }
+    
+    /* 触摸优化保持不变 */
+    @media (hover: none) and (pointer: coarse) {
+      .join-btn:active {
+        transform: scale(0.98);
+      }
+      
+      .group-icon:active .icon-bg {
+        transform: scale(0.95);
+      }
+      
+      .theme-indicator:active {
+        transform: scale(0.95);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="background-container">
+    <div class="bg-layer"></div>
+    <div class="particle-container" id="particles"></div>
+  </div>
+  <div class="theme-indicator" id="themeIndicator" onclick="switchTheme()">
+    💙
+  </div>
+  <div class="card">
+    <div class="card-content">
+      <div class="group-icon" onclick="iconClick()">
+        <div class="icon-bg" id="groupIcon">🚀</div>
+      </div>
+      
+      <h1 class="title">米哈游家庭</h1>
+      <p class="subtitle">汇聚ACG爱好者，分享前沿技术<br>24小时在线交流，共同成长进步</p>
+      
+      <div class="group-info">
+        <div class="info-item">
+          <span class="info-number">5.2K+</span>
+          <div class="info-label">活跃成员</div>
+        </div>
+        <div class="info-item">
+          <span class="info-number">98%</span>
+          <div class="info-label">在线率</div>
+        </div>
+        <div class="info-item">
+          <span class="info-number">5★</span>
+          <div class="info-label">群评分</div>
+        </div>
+      </div>
+      
+      <button class="join-btn" onclick="joinGroup(event)">✨ 立即加入群聊 ✨</button>
+      
+      <div class="loading" id="loading">
+        <div class="loading-dot"></div>
+        <div class="loading-dot"></div>
+        <div class="loading-dot"></div>
+      </div>
+      
+      <!-- 错误提示区域 -->
+      <div class="error-message" id="errorMessage">
+        ⚠️ 跳转失败，请尝试以下备用方式加入
+      </div>
+      
+      <!-- 备用加入方式 -->
+      <div class="backup-methods">
+        <p class="subtitle">备用加入方式</p>
+        <div class="group-number" onclick="copyGroupNumber()">
+          807937569
+          <div style="font-size: 12px; margin-top: 5px; opacity: 0.8;">点击复制群号</div>
+        </div>
+      </div>
+      
+      <div class="env-info" id="envInfo">
+        🔍 智能环境检测中...
+      </div>
+      
+      <div class="time-info" id="timeInfo">
+        📅 正在加载时间信息...
+      </div>
+    </div>
+  </div>
+  <script>
+    class EnhancedQQCard {
+      constructor() {
+        this.themes = [
+          { hue: 210, name: '科技蓝', emoji: '💙' },
+          { hue: 280, name: '梦幻紫', emoji: '💜' },
+          { hue: 120, name: '清新绿', emoji: '💚' },
+          { hue: 45, name: '活力橙', emoji: '🧡' }
+        ];
+        this.currentThemeIndex = 0;
+        this.animeCharacters = [
+           '🚀', '🌌',
+        ];
+        
+        this.init();
+        this.createParticles();
+        this.startThemeRotation();
+        this.detectEnvironment();
+        this.updateTime();
+        
+        // 定时更新
+        setInterval(() => this.updateTime(), 30000);
+      }
+      
+      init() {
+        this.updateTheme();
+        this.addTouchOptimizations();
+      }
+      
+      createParticles() {
+        const container = document.getElementById('particles');
+        const particleCount = Math.min(30, Math.floor(window.innerWidth / 40));
+        
+        for (let i = 0; i < particleCount; i++) {
+          const particle = document.createElement('div');
+          particle.className = 'particle';
+          
+          const size = Math.random() * 6 + 3;
+          particle.style.width = size + 'px';
+          particle.style.height = size + 'px';
+          particle.style.left = Math.random() * 100 + '%';
+          particle.style.top = Math.random() * 100 + '%';
+          particle.style.animationDelay = Math.random() * 8 + 's';
+          particle.style.animationDuration = (Math.random() * 5 + 6) + 's';
+          
+          container.appendChild(particle);
+        }
+      }
+      
+      updateTheme() {
+        const theme = this.themes[this.currentThemeIndex];
+        const root = document.documentElement;
+        
+        root.style.setProperty('--primary-hue', theme.hue);
+        root.style.setProperty('--secondary-hue', theme.hue + 60);
+        root.style.setProperty('--accent-hue', theme.hue + 120);
+        
+        document.getElementById('themeIndicator').textContent = theme.emoji;
+      }
+      
+      startThemeRotation() {
+        setInterval(() => {
+          this.currentThemeIndex = (this.currentThemeIndex + 1) % this.themes.length;
+          this.updateTheme();
+        }, 15000);
+      }
+      
+      detectEnvironment() {
+        const ua = navigator.userAgent;
+        let envInfo = '';
+        let emoji = '';
+        let tips = '';
+        
+        if (/MicroMessenger/i.test(ua)) {
+          emoji = '💬';
+          envInfo = '微信浏览器';
+          tips = '微信不支持直接跳转，请使用备用方式';
+        } else if (/QQ\//i.test(ua)) {
+          emoji = '🐧';
+          envInfo = 'QQ浏览器';
+          tips = '点击下方按钮即可直接加入群聊';
+        } else if (/Tim\//i.test(ua)) {
+          emoji = '💼';
+          envInfo = 'TIM浏览器';
+          tips = '办公版QQ，功能完整支持';
+        } else {
+          emoji = '🌐';
+          envInfo = this.getBrowserName();
+          tips = '建议复制链接到QQ中打开';
+        }
+        
+        const isMobile = /Mobile|Android|iPhone|iPad/i.test(ua);
+        const deviceEmoji = isMobile ? '📱' : '💻';
+        const deviceType = isMobile ? '移动设备' : '桌面设备';
+        const osEmoji = this.getOSEmoji();
+        
+        document.getElementById('envInfo').innerHTML = 
+          `${emoji} <strong>${envInfo}</strong> • ${deviceEmoji} ${deviceType}<br><br>
+           ${osEmoji} <small>${tips}</small>`;
+      }
+      
+      getBrowserName() {
+        const ua = navigator.userAgent;
+        if (/Chrome/i.test(ua) && !/Edge/i.test(ua)) return 'Chrome';
+        if (/Firefox/i.test(ua)) return 'Firefox';
+        if (/Safari/i.test(ua) && !/Chrome/i.test(ua)) return 'Safari';
+        if (/Edge/i.test(ua)) return 'Edge';
+        if (/Opera|OPR/i.test(ua)) return 'Opera';
+        return '未知浏览器';
+      }
+      
+      getOSEmoji() {
+        const ua = navigator.userAgent;
+        if (/iPhone|iPad/i.test(ua)) return '🍎';
+        if (/Android/i.test(ua)) return '🤖';
+        if (/Windows/i.test(ua)) return '🪟';
+        if (/Mac/i.test(ua)) return '🍎';
+        if (/Linux/i.test(ua)) return '🐧';
+        return '❓';
+      }
+      
+      updateTime() {
+        const now = new Date();
+        const timeStr = now.toLocaleString('zh-CN', {
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+        
+        let emoji, greeting;
+        const hour = now.getHours();
+        
+        if (hour >= 6 && hour < 12) {
+          emoji = '🌅'; greeting = '早上好，新的一天开始了';
+        } else if (hour >= 12 && hour < 18) {
+          emoji = '☀️'; greeting = '下午好，继续加油努力';
+        } else if (hour >= 18 && hour < 22) {
+          emoji = '🌇'; greeting = '晚上好，放松一下吧';
+        } else {
+          emoji = '🌙'; greeting = '夜深了，注意休息';
+        }
+        
+        document.getElementById('timeInfo').innerHTML = `${emoji} ${timeStr} <br> ${greeting}`;
+      }
+      
+      addTouchOptimizations() {
+        // 触摸优化逻辑
+      }
+    }
+    
+    const card = new EnhancedQQCard();
+    
+    function joinGroup(event) {
+      event.preventDefault();
+      const key = 'u4_XHwm1gOzQ8YZNFcACfZrSndxg1P5w';
+      const url = `mqqopensdkapi://bizAgent/qm/qr?url=http%3A%2F%2Fqm.qq.com%2Fcgi-bin%2Fqm%2Fqr%3Ffrom%3Dapp%26p%3Dandroid%26jump_from%3Dwebapi%26k%3D${key}`;
+      const a = document.createElement('a');
+      a.href = url;
+      a.target = '_blank';
+      a.click();
+
+      // 简单模拟跳转失败的情况（实际需要更完善的检测）
+      setTimeout(() => {
+        const ua = navigator.userAgent;
+        if (/MicroMessenger/i.test(ua)) {
+          document.getElementById('errorMessage').style.display = 'block';
+        }
+      }, 1000);
+    }
+
+    function copyGroupNumber() {
+      const groupNumber = '807937569';
+      const textArea = document.createElement('textarea');
+      textArea.value = groupNumber;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      alert('群号已复制：' + groupNumber);
+    }
+
+    function iconClick() {
+      // 图标点击事件逻辑
+    }
+
+    function switchTheme() {
+      // 切换主题逻辑
+    }
+  </script>
+</body>
+</html>
